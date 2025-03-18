@@ -1,0 +1,123 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+pre[class*="language-"] {
+  color: #0F0; /* Match your text color */
+  background-color: #001000; /* Match your code block background */
+}
+
+code[class*="language-"] {
+  font-family: 'Courier New', monospace;
+}
+
+/* New Keyframes */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes typing {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Make sure these global styles are applied first */
+::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 20, 0, 0.8) !important;
+  border-radius: 6px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0F0 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.5) !important;
+}
+
+/* Then target your specific element */
+.main-content-scroll::-webkit-scrollbar {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.main-content-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 20, 0, 0.8) !important;
+  border-radius: 6px !important;
+}
+
+.main-content-scroll::-webkit-scrollbar-thumb {
+  /* Change background to transparent to let SVG transparency work */
+  background-color: transparent !important;
+  background-image: url('transistor.svg') !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+  border-radius: 0 !important;
+}
+
+/* Subtle hover effect that preserves the SVG visibility */
+.main-content-scroll::-webkit-scrollbar-thumb:hover {
+  /* No background color change to maintain transparency */
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.4) !important; /* Subtle glow */
+  filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.6)) !important; /* Adds glow to the SVG */
+  opacity: 0.9 !important; /* Very slight transparency change */
+}
+
+/* Ensure the track matches the shape context */
+.main-content-scroll::-webkit-scrollbar-track {
+  border-radius: 6px;
+  z-index: 6; /* Above scanlines and CRT */
+}
