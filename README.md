@@ -2,6 +2,13 @@
 
 A Matrix terminal-inspired chat application that interfaces with the DeepSeek AI API. Features include a retro CRT aesthetic, file uploads for context, chat history management, and a customizable system prompt. Built with React (frontend) and Express (backend). 
 
+### Screenshots
+![Screenshot 2025-03-19 152628](https://github.com/user-attachments/assets/951882d0-e7db-4fb3-9169-322eaec9539c) 
+
+![Screenshot 2025-03-19 152652](https://github.com/user-attachments/assets/0ec1e053-876d-412c-be8f-8660a41f5866) 
+
+![Screenshot 2025-03-19 152812](https://github.com/user-attachments/assets/143a51de-0478-4ab3-b936-ecc85c06a277)
+
 ## Features
 - **Retro UI**: CRT screen effects and scanlines with a green-on-black terminal style.
 - **Chat Management**: Create, switch, and delete chat sessions with persistent history.
