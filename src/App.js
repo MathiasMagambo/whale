@@ -153,31 +153,31 @@ const App = () => {
           reader.readAsText(file);
         });
       });
-
+  
       const newFileData = await Promise.all(fileReaders);
-
-      // Merge new files with existing ones
+  
+      // Merge new files with existing ones, replacing duplicates
       const updatedFiles = [...uploadedFiles];
-      newFileData.forEach(newFile => {
-        const index = updatedFiles.findIndex(f => f.name === newFile.name);
+      newFileData.forEach((newFile) => {
+        const index = updatedFiles.findIndex((f) => f.name === newFile.name);
         if (index !== -1) {
-          updatedFiles[index] = newFile; // Replace if name exists
+          updatedFiles[index] = newFile; // Replace if exists
         } else {
           updatedFiles.push(newFile); // Add if new
         }
       });
-
+  
       setUploadedFiles(updatedFiles);
-
+  
       try {
         await axios.post(`http://localhost:5000/save-files/${activeChatId}`, {
-          files: updatedFiles,
+          files: updatedFiles, // Send the full list
         });
         console.log("Files uploaded successfully");
       } catch (error) {
         console.error("Error uploading files:", error);
       }
-
+  
       setUploadConfirmation(`${files.length} file(s) uploaded successfully as context.`);
       setTimeout(() => setUploadConfirmation(""), 3000);
     }
@@ -1043,16 +1043,39 @@ const App = () => {
         >
           SCROLL TO BOTTOM
         </button>
-
+        {uploadConfirmation && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "175px", // Adjust this value to position it above the prompt box
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "10px 20px",
+              backgroundColor: "rgba(0, 20, 0, 0.8)",
+              color: "#0F0",
+              fontFamily: "'Courier New', monospace",
+              fontSize: "12px",
+              border: "1px solid #0F0", // Changed from borderBottom to full border for a floating box
+              borderRadius: "3px",
+              textAlign: "center",
+              zIndex: 10, // Higher than other elements to ensure visibility
+              boxShadow: "0 0 10px rgba(0, 255, 0, 0.3)",
+            }}
+          >
+            {uploadConfirmation}
+          </div>
+        )}
         {/* Prompt Box Section */}
         <div
           style={{
-            padding: "20px",
+            padding: "10px 20px 20px 20px",
             backgroundColor: "rgba(0, 10, 0, 0.9)",
             borderTop: "1px solid #0F0",
             boxShadow: "0 -5px 15px rgba(0, 100, 0, 0.2)",
             zIndex: 2,
-            minHeight: "180px",
+            height: "180px",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {uploadedFiles.length > 0 && (
@@ -1064,6 +1087,9 @@ const App = () => {
                 gap: "8px",
                 fontSize: "12px",
                 color: "#8F8",
+                height: "30px", // Fixed height for file display
+                overflowY: "hidden",
+                overflowX: "auto", // Scroll if too many files
               }}
             >
               {uploadedFiles.map((file, index) => (
@@ -1098,7 +1124,7 @@ const App = () => {
               ))}
             </div>
           )}
-
+      
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -1116,9 +1142,11 @@ const App = () => {
               fontFamily: "'Courier New', monospace",
               resize: "none",
               boxShadow: "0 0 10px rgba(0, 255, 0, 0.2)",
-              height: "90px",
+              height: "100px", // Adjusted from 90px to fit the fixed space
+              flex: "1 1 auto", // Allow it to fill available space
             }}
           />
+
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
               <label
@@ -1155,9 +1183,7 @@ const App = () => {
                 style={{ display: "none" }}
                 disabled={!activeChatId}
               />
-              {uploadConfirmation && (
-                <div style={{ /* ... */ }}>{uploadConfirmation}</div>
-              )}
+
               <button
                 onClick={handleModelSwitch}
                 style={{

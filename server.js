@@ -29,6 +29,15 @@ app.post("/save-files/:chatId", (req, res) => {
     fs.mkdirSync(chatDir, { recursive: true });
   }
 
+  // Clear existing files in the directory (except chat.json)
+  fs.readdirSync(chatDir)
+    .filter((fileName) => fileName !== "chat.json")
+    .forEach((fileName) => {
+      const filePath = path.join(chatDir, fileName);
+      fs.unlinkSync(filePath);
+      console.log("Deleted existing file:", filePath); // Debug log
+    });
+
   // Save each file in the chat's directory
   files.forEach((file) => {
     const filePath = path.join(chatDir, file.name);
