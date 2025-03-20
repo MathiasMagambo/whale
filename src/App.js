@@ -1029,7 +1029,7 @@ const App = () => {
             transition: "all 0.3s ease",
             zIndex: 10,
             width: "auto",
-            minWidth: "120px",
+            minWidth: "60px",
             whiteSpace: "nowrap",
           }}
           onMouseOver={(e) => {
@@ -1131,7 +1131,7 @@ const App = () => {
             placeholder="ENTER COMMAND SEQUENCE..."
             rows={5}
             style={{
-              width: "90%",
+              width: "85%",
               marginBottom: "15px",
               fontSize: "14px",
               padding: "12px",
