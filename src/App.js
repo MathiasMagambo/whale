@@ -1014,8 +1014,8 @@ const App = () => {
           }}
           style={{
             position: "fixed",
-            bottom: "260px", // Position just above the prompt box
-            left: "85%",
+            bottom: "175px", // Position just above the prompt box
+            left: "85.5%",
             transform: "translateX(50%)",
             backgroundColor: "rgba(0, 30, 0, 0.8)",
             color: "#0F0",
