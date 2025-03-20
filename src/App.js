@@ -142,7 +142,7 @@ const App = () => {
 
   // Handle file upload
   const handleFileUpload = async (event) => {
-    const files = Array.from(event.target.files).slice(0, 10);
+    const files = Array.from(event.target.files).slice(0, 50);
     if (files.length > 0) {
       const fileReaders = files.map((file) => {
         return new Promise((resolve) => {
@@ -153,9 +153,9 @@ const App = () => {
           reader.readAsText(file);
         });
       });
-  
+
       const newFileData = await Promise.all(fileReaders);
-  
+
       // Merge new files with existing ones, replacing duplicates
       const updatedFiles = [...uploadedFiles];
       newFileData.forEach((newFile) => {
@@ -166,9 +166,9 @@ const App = () => {
           updatedFiles.push(newFile); // Add if new
         }
       });
-  
+
       setUploadedFiles(updatedFiles);
-  
+
       try {
         await axios.post(`http://localhost:5000/save-files/${activeChatId}`, {
           files: updatedFiles, // Send the full list
@@ -177,7 +177,7 @@ const App = () => {
       } catch (error) {
         console.error("Error uploading files:", error);
       }
-  
+
       setUploadConfirmation(`${files.length} file(s) uploaded successfully as context.`);
       setTimeout(() => setUploadConfirmation(""), 3000);
     }
@@ -1080,16 +1080,20 @@ const App = () => {
         >
           {uploadedFiles.length > 0 && (
             <div
+              className="uploaded-files-scroll"
               style={{
-                marginBottom: "10px",
+                marginBottom: "5px",
                 display: "flex",
-                flexWrap: "wrap",
                 gap: "8px",
                 fontSize: "12px",
                 color: "#8F8",
-                height: "30px", // Fixed height for file display
-                overflowY: "hidden",
-                overflowX: "auto", // Scroll if too many files
+                height: "30px",
+                maxWidth: "85%",
+                overflowX: "auto", // Horizontal scroll
+                overflowY: "hidden", // No vertical scroll
+                whiteSpace: "nowrap", // Keep items in one line
+                scrollbarWidth: "thin",
+                scrollbarColor: "#0F0 #000",
               }}
             >
               {uploadedFiles.map((file, index) => (
@@ -1124,7 +1128,7 @@ const App = () => {
               ))}
             </div>
           )}
-      
+
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -1177,7 +1181,7 @@ const App = () => {
               <input
                 id="file-upload"
                 type="file"
-                accept=".txt,.js,.py,.java"
+                accept=".txt,.js,.py,.java,.cpp,.h,.cs,.go,.rb,.php,.html,.css,.tsx,.ts,.json,.xml,.md,.rst,.yml,.yaml,.ini,.csv,.c,.rs,.swift,.kt"
                 onChange={handleFileUpload}
                 multiple
                 style={{ display: "none" }}

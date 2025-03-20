@@ -121,3 +121,20 @@ code[class*="language-"] {
   border-radius: 6px;
   z-index: 6; /* Above scanlines and CRT */
 }
+
+.uploaded-files-scroll::-webkit-scrollbar {
+  height: 2px; /* Smaller than typical 'thin' (often ~6-8px) */
+}
+
+.uploaded-files-scroll::-webkit-scrollbar-track {
+  background: #000; /* Black track to match your theme */
+}
+
+.uploaded-files-scroll::-webkit-scrollbar-thumb {
+  background: #0F0; /* Green thumb */
+  border-radius: 2px; /* Slight rounding */
+}
+
+.uploaded-files-scroll::-webkit-scrollbar-thumb:hover {
+  background: #0F8; /* Slightly brighter green on hover */
+}
