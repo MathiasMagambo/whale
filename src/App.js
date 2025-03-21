@@ -100,9 +100,10 @@ const App = () => {
       messages: []
     });
 
-    setChats(prev => [...prev, newChat]);
+    setChats(prev => [newChat, ...prev]);
     setActiveChatId(newChatId);
     setMessages([]);
+    setUploadedFiles([]);
 
     return newChat; // Return the new chat object
   };
