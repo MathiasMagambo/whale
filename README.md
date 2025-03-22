@@ -7,15 +7,16 @@ A Matrix terminal-inspired chat application that interfaces with the DeepSeek AI
   <img src="https://github.com/user-attachments/assets/951882d0-e7db-4fb3-9169-322eaec9539c" width="359" height="190" alt="Full App Page">
   <img src="https://github.com/user-attachments/assets/0ec1e053-876d-412c-be8f-8660a41f5866" width="345" height="189" alt="System Prompt">
 <img src="https://github.com/user-attachments/assets/143a51de-0478-4ab3-b936-ecc85c06a277" width="346" height="123" alt="Code Display Sample">
+  <img src="https://github.com/user-attachments/assets/48b14f61-0d4d-4967-b682-78921863b3c1" width="341" height="256" alt="Search Overlay">
 </p>
 
 ## Features
 - **Retro UI**: CRT screen effects and scanlines with a green-on-black terminal style.
-- **Chat Management**: Create, switch, and delete chat sessions with persistent history.
-- **File Uploads**: Upload text files (e.g., `.txt`, `.js`, `.py`) to provide context to the AI.
-- **Streaming Responses**: Real-time AI responses with a typing animation.
+- **Search Chats**: Search through chats. Click once to preview the chat. Click "GO TO CHAT" to see the highlighted results in a chat. 
+- **Chat Management**: Same as every chat interface.
+- **File Uploads**: Upload text files (except `.pdf`, `.xlsx`, `.docx`) to provide context to the AI. Allows up to 50 files (or how much the context can handle).
 - **Model Switching**: Toggle between `deepseek-chat` (standard) and `deepseek-reasoner` (thinking) models. (`deepseek-reasoner` rarely works with the API idk why)
-- **Custom System Prompt**: Configure how the AI responds globally.
+- **Custom System Prompt**: How you want your responses.
 
 ## Prerequisites
 - **Node.js**: Version 14.x or higher (includes npm).
