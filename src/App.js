@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import axios from "axios";
 import OpenAI from "openai";
 import "./App.css";
@@ -17,6 +17,9 @@ const App = () => {
   const [isSystemPromptOverlayOpen, setIsSystemPromptOverlayOpen] = useState(false); // New state for overlay
   const abortController = useRef(null);
   const messagesEndRef = useRef(null);
+  const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChatForPreview, setSelectedChatForPreview] = useState(null);
 
 
   // Terminal boot sequence
@@ -312,6 +315,15 @@ const App = () => {
       }
     }
   };
+
+  // Filter chats based on search query
+  const filteredChats = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return chats;
+    return chats.filter((chat) => 
+      chat.messages.some((msg) => msg.content.toLowerCase().includes(query))
+    );
+  }, [searchQuery, chats]);
 
   // Add a new state for the model button visibility
   const [isModelButtonVisible, setIsModelButtonVisible] = useState(true);
@@ -745,6 +757,31 @@ const App = () => {
           INITIALIZE NEW SESSION
         </button>
 
+        <button
+          onClick={() => setIsSearchOverlayOpen(true)}
+          style={{
+            width: "100%",
+            marginBottom: "15px",
+            backgroundColor: "rgba(0, 20, 0, 0.8)",
+            color: "#0F0",
+            border: "1px solid #0F0",
+            padding: "8px",
+            cursor: "pointer",
+            fontFamily: "'Courier New', monospace",
+            boxShadow: "0 0 5px #0F0",
+            transition: "all 0.3s ease"
+          }}
+          onMouseOver={(e) => {
+            e.target.style.backgroundColor = "rgba(0, 40, 0, 0.8)";
+            e.target.style.boxShadow = "0 0 10px #0F0";
+          }}
+          onMouseOut={(e) => {
+            e.target.style.backgroundColor = "rgba(0, 20, 0, 0.8)";
+            e.target.style.boxShadow = "0 0 5px #0F0";
+          }}
+        >
+          SEARCH CHATS
+        </button>
 
         <div style={{ marginTop: "20px", marginBottom: "10px", fontSize: "12px" }}>
           SESSION ARCHIVES:
@@ -814,6 +851,174 @@ const App = () => {
           height: "100vh", // Ensure it takes the full viewport height
         }}
       >
+        {/* Search Overlay */}
+        {isSearchOverlayOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.9)",
+              zIndex: 10,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center"
+            }}
+            onClick={() => setIsSearchOverlayOpen(false)}
+          >
+            <div
+              style={{
+                width: "700px",
+                height: "500px",
+                padding: "20px",
+                backgroundColor: "rgba(0, 10, 0, 0.95)",
+                border: "1px solid #0F0",
+                borderRadius: "5px",
+                boxShadow: "0 0 15px rgba(0, 255, 0, 0.3)",
+                color: "#0F0",
+                fontFamily: "'Courier New', monospace",
+                display: "flex",
+                flexDirection: "column"
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                <h3 style={{ margin: 0, textShadow: "0 0 5px #0F0" }}>SEARCH SESSIONS</h3>
+                <button
+                  onClick={() => setIsSearchOverlayOpen(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#F00",
+                    fontSize: "20px",
+                    cursor: "pointer"
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ position: "relative", marginBottom: "15px" }}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ENTER SEARCH QUERY..."
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "rgba(0, 20, 0, 0.8)",
+                    color: "#0F0",
+                    border: "1px solid #0F0",
+                    borderRadius: "3px",
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "14px"
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    style={{
+                      position: "absolute",
+                      right: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#F00",
+                      fontSize: "16px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <div style={{ width: "40%", overflowY: "auto", borderRight: "1px solid #0F0", paddingRight: "10px" }}>
+                  {filteredChats.map((chat) => (
+                    <div
+                      key={chat.id}
+                      onClick={() => setSelectedChatForPreview(chat)}
+                      onDoubleClick={() => {
+                        switchChat(chat.id);
+                        setIsSearchOverlayOpen(false);
+                      }}
+                      style={{
+                        padding: "8px",
+                        cursor: "pointer",
+                        backgroundColor: selectedChatForPreview?.id === chat.id ? "rgba(0, 50, 0, 0.8)" : "transparent",
+                        borderBottom: "1px solid #063",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}
+                    >
+                      {chat.name}
+                    </div>
+                  ))}
+                  {filteredChats.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+                      NO MATCHING SESSIONS
+                    </div>
+                  )}
+                </div>
+                <div style={{ width: "60%", paddingLeft: "10px", display: "flex", flexDirection: "column" }}>
+                  {selectedChatForPreview ? (
+                    <>
+                      <div style={{ fontWeight: "bold", marginBottom: "10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {selectedChatForPreview.name}
+                      </div>
+                      <div style={{ flex: 1, overflowY: "auto", marginBottom: "10px" }}>
+                        {selectedChatForPreview.messages.slice(0, 3).map((msg, index) => (
+                          <div key={index} style={{ marginBottom: "10px" }}>
+                            <strong>{msg.role.toUpperCase()}:</strong> {msg.content.substring(0, 100)}...
+                          </div>
+                        ))}
+                        {selectedChatForPreview.messages.length > 3 && (
+                          <div style={{ textAlign: "center", color: "#666" }}>...more messages...</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          switchChat(selectedChatForPreview.id);
+                          setIsSearchOverlayOpen(false);
+                        }}
+                        style={{
+                          alignSelf: "flex-end",
+                          backgroundColor: "rgba(0, 20, 0, 0.8)",
+                          color: "#0F0",
+                          border: "1px solid #0F0",
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          fontFamily: "'Courier New', monospace",
+                          boxShadow: "0 0 5px #0F0",
+                          transition: "all 0.3s ease"
+                        }}
+                        onMouseOver={(e) => {
+                          e.target.style.backgroundColor = "rgba(0, 40, 0, 0.8)";
+                          e.target.style.boxShadow = "0 0 10px #0F0";
+                        }}
+                        onMouseOut={(e) => {
+                          e.target.style.backgroundColor = "rgba(0, 20, 0, 0.8)";
+                          e.target.style.boxShadow = "0 0 5px #0F0";
+                        }}
+                      >
+                        GO TO CHAT
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+                      SELECT A SESSION TO PREVIEW
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Scrollable Messages Section */}
         <div
           ref={messagesContainerRef} // Attach the ref to the scrollable container
