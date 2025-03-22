@@ -1,6 +1,6 @@
 # whale
 
-A Matrix terminal-inspired chat application that interfaces with the DeepSeek AI API. Features include a retro CRT aesthetic, file uploads for context, chat history management, and a customizable system prompt. Built with React (frontend) and Express (backend). 
+A Matrix terminal-inspired chat application that interfaces with the DeepSeek AI API (may add other models later). Wanted a better chat interface for my llm chats so why not?  
 
 ### Screenshots
 <p style="display: flex; gap: 10px;">
