@@ -20,6 +20,8 @@ const App = () => {
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChatForPreview, setSelectedChatForPreview] = useState(null);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+  const [matches, setMatches] = useState([]);
 
 
   // Terminal boot sequence
@@ -112,20 +114,46 @@ const App = () => {
   };
 
   // Switch to an existing chat
-  const switchChat = async (chatId) => {
-    try { // Wrap in try-catch
+  const switchChat = async (chatId, fromSearch = false) => {
+    try {
       const messagesResponse = await axios.get(`http://localhost:5000/load-chat/${chatId}`);
-      setMessages(messagesResponse.data || []); // Fallback to empty array if no data
-
+      setMessages(messagesResponse.data || []);
       const filesResponse = await axios.get(`http://localhost:5000/load-files/${chatId}`);
-      setUploadedFiles(filesResponse.data || []); // Fallback to empty array if no data
-
+      setUploadedFiles(filesResponse.data || []);
       setActiveChatId(chatId);
+
+      if (fromSearch && searchQuery) {
+        const newMatches = [];
+        messagesResponse.data.forEach((msg, msgIndex) => {
+          const content = msg.content.toLowerCase();
+          const query = searchQuery.toLowerCase();
+          let pos = content.indexOf(query);
+          while (pos !== -1) {
+            newMatches.push({ messageIndex: msgIndex, startPos: pos });
+            pos = content.indexOf(query, pos + 1);
+          }
+        });
+        setMatches(newMatches);
+        setCurrentMatchIndex(newMatches.length > 0 ? 0 : -1);
+        if (newMatches.length > 0) {
+          scrollToMatch(newMatches[0]);
+        }
+      } else {
+        setMatches([]);
+        setCurrentMatchIndex(-1);
+      }
     } catch (error) {
       console.error("Error switching chat:", error);
-      setMessages([]); // Reset to avoid layout issues
+      setMessages([]);
       setUploadedFiles([]);
-      setActiveChatId(chatId); // Still switch, but with safe state
+      setActiveChatId(chatId);
+    }
+  };
+
+  const scrollToMatch = (match) => {
+    const messageElement = document.getElementById(`message-${match.messageIndex}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
 
@@ -320,10 +348,26 @@ const App = () => {
   const filteredChats = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return chats;
-    return chats.filter((chat) => 
+    return chats.filter((chat) =>
       chat.messages.some((msg) => msg.content.toLowerCase().includes(query))
     );
   }, [searchQuery, chats]);
+
+  // Highlight matching text in search results
+  const highlightMatches = (text, query) => {
+    if (!query) return text;
+    const regex = new RegExp(`(${query})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <span key={index} style={{ backgroundColor: "rgba(0, 255, 0, 0.3)", color: "#FFF" }}>
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
 
   // Add a new state for the model button visibility
   const [isModelButtonVisible, setIsModelButtonVisible] = useState(true);
@@ -376,154 +420,87 @@ const App = () => {
     setTimeout(() => document.body.removeChild(alertDiv), 2000);
   };
 
-  const renderMessageContent = (content) => {
+  const renderMessageContent = (content, query = searchQuery) => {
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    const boldRegex = /\*\*(.*?)\*\*/g; // Matches text between ** for bold
-    const headingRegex = /^###\s*(.+)$/gm; // Matches ### followed by text at the start of a line
+    const boldRegex = /\*\*(.*?)\*\*/g;
+    const headingRegex = /^###\s*(.+)$/gm;
     const parts = [];
     let lastIndex = 0;
     let match;
 
-    // First, split content by code blocks
+    const highlightMatches = (text) => {
+      if (!query || !matches.length) return text;
+      const regex = new RegExp(`(${query})`, 'gi');
+      const parts = text.split(regex);
+      return parts.map((part, index) =>
+        regex.test(part) ? (
+          <span key={index} style={{ backgroundColor: "rgba(0, 255, 0, 0.3)", color: "#FFF" }}>
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      );
+    };
+
     while ((match = codeBlockRegex.exec(content)) !== null) {
-      // Add text before the code block, if any
       if (match.index > lastIndex) {
         const textBefore = content.slice(lastIndex, match.index);
-        // Split by newlines
         const lines = textBefore.split("\n");
         lines.forEach((line, lineIndex) => {
           if (line.trim() === "---") {
-            // Render a divider for "---"
             parts.push(
-              <div
-                key={`divider-${lastIndex}-${lineIndex}`}
-                style={{
-                  borderTop: "1px solid #0F0",
-                  margin: "20px 0",
-                  opacity: 0.5,
-                }}
-              />
+              <div key={`divider-${lastIndex}-${lineIndex}`} style={{ borderTop: "1px solid #0F0", margin: "20px 0", opacity: 0.5 }} />
             );
           } else if (line.trim().match(headingRegex)) {
-            // Render a heading for "###"
-            const headingText = line.replace(/^###\s*/, ""); // Remove "### " prefix
+            const headingText = line.replace(/^###\s*/, "");
             let textLastIndex = 0;
             let boldMatch;
             const headingParts = [];
             while ((boldMatch = boldRegex.exec(headingText)) !== null) {
               if (boldMatch.index > textLastIndex) {
-                headingParts.push(
-                  <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                    {headingText.slice(textLastIndex, boldMatch.index)}
-                  </span>
-                );
+                headingParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{headingText.slice(textLastIndex, boldMatch.index)}</span>);
               }
-              headingParts.push(
-                <strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>
-                  {boldMatch[1]}
-                </strong>
-              );
+              headingParts.push(<strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>{boldMatch[1]}</strong>);
               textLastIndex = boldMatch.index + boldMatch[0].length;
             }
             if (textLastIndex < headingText.length) {
-              headingParts.push(
-                <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                  {headingText.slice(textLastIndex)}
-                </span>
-              );
+              headingParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{headingText.slice(textLastIndex)}</span>);
             }
             parts.push(
-              <h3
-                key={`heading-${lastIndex}-${lineIndex}`}
-                style={{
-                  color: "#0F0",
-                  fontFamily: "'Courier New', monospace",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  textShadow: "0 0 5px #0F0",
-                  margin: "15px 0",
-                  letterSpacing: "1px",
-                }}
-              >
-                {headingParts}
+              <h3 key={`heading-${lastIndex}-${lineIndex}`} style={{ color: "#0F0", fontFamily: "'Courier New', monospace", fontSize: "16px", fontWeight: "bold", textShadow: "0 0 5px #0F0", margin: "15px 0", letterSpacing: "1px" }}>
+                {highlightMatches(headingText)}
               </h3>
             );
           } else if (line.trim() !== "") {
-            // Process regular text lines
             let textLastIndex = 0;
             let boldMatch;
             const lineParts = [];
             while ((boldMatch = boldRegex.exec(line)) !== null) {
               if (boldMatch.index > textLastIndex) {
-                lineParts.push(
-                  <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                    {line.slice(textLastIndex, boldMatch.index)}
-                  </span>
-                );
+                lineParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{line.slice(textLastIndex, boldMatch.index)}</span>);
               }
-              lineParts.push(
-                <strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>
-                  {boldMatch[1]}
-                </strong>
-              );
+              lineParts.push(<strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>{boldMatch[1]}</strong>);
               textLastIndex = boldMatch.index + boldMatch[0].length;
             }
             if (textLastIndex < line.length) {
-              lineParts.push(
-                <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                  {line.slice(textLastIndex)}
-                </span>
-              );
+              lineParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{line.slice(textLastIndex)}</span>);
             }
-            parts.push(
-              <div key={`line-${lastIndex}-${lineIndex}`}>
-                {lineParts}
-              </div>
-            );
+            parts.push(<div key={`line-${lastIndex}-${lineIndex}`}>{highlightMatches(line)}</div>);
           }
-          // Add a line break between lines, but not after the last line or headings/dividers
-          if (
-            lineIndex < lines.length - 1 &&
-            line.trim() !== "---" &&
-            !line.trim().match(headingRegex) &&
-            line.trim() !== ""
-          ) {
+          if (lineIndex < lines.length - 1 && line.trim() !== "---" && !line.trim().match(headingRegex) && line.trim() !== "") {
             parts.push(<br key={`br-${lastIndex}-${lineIndex}`} />);
           }
         });
-        // Add spacing after non-code text block
         parts.push(<div key={`spacer-${match.index}`} style={{ marginBottom: "10px" }} />);
       }
 
-      // Add the code block
       const language = match[1] || "";
       const code = match[2];
       parts.push(
-        <div
-          key={`code-${parts.length}`}
-          style={{
-            position: "relative",
-            margin: "10px 0",
-            padding: "10px",
-            backgroundColor: "#000", // Solid black background
-            border: "1px solid #0F0",
-            borderRadius: "3px",
-            zIndex: 5, // Ensure it sits above CRT and scanline effects
-            overflow: "hidden", // Prevent scanlines from bleeding through
-          }}
-        >
-          <pre
-            style={{
-              backgroundColor: "transparent", // No additional background
-              padding: "0",
-              margin: "0",
-              overflowX: "auto",
-              color: "#FFF", // White text for code
-              fontFamily: "'Courier New', monospace",
-              fontSize: "14px",
-            }}
-          >
-            <code>{code}</code>
+        <div key={`code-${parts.length}`} style={{ position: "relative", margin: "10px 0", padding: "10px", backgroundColor: "#000", border: "1px solid #0F0", borderRadius: "3px", zIndex: 5, overflow: "hidden" }}>
+          <pre style={{ backgroundColor: "transparent", padding: "0", margin: "0", overflowX: "auto", color: "#FFF", fontFamily: "'Courier New', monospace", fontSize: "14px" }}>
+            <code>{highlightMatches(code)}</code>
           </pre>
           <button
             onClick={() => handleCopyResponse(code)}
@@ -540,16 +517,10 @@ const App = () => {
               fontSize: "12px",
               fontFamily: "'Courier New', monospace",
               boxShadow: "0 0 5px rgba(0, 255, 0, 0.3)",
-              transition: "all 0.3s ease",
+              transition: "all 0.3s ease"
             }}
-            onMouseOver={(e) => {
-              e.target.style.backgroundColor = "rgba(0, 50, 0, 0.8)";
-              e.target.style.boxShadow = "0 0 8px rgba(0, 255, 0, 0.5)";
-            }}
-            onMouseOut={(e) => {
-              e.target.style.backgroundColor = "rgba(0, 30, 0, 0.8)";
-              e.target.style.boxShadow = "0 0 5px rgba(0, 255, 0, 0.3)";
-            }}
+            onMouseOver={(e) => { e.target.style.backgroundColor = "rgba(0, 50, 0, 0.8)"; e.target.style.boxShadow = "0 0 8px rgba(0, 255, 0, 0.5)"; }}
+            onMouseOut={(e) => { e.target.style.backgroundColor = "rgba(0, 30, 0, 0.8)"; e.target.style.boxShadow = "0 0 5px rgba(0, 255, 0, 0.3)"; }}
           >
             COPY CODE
           </button>
@@ -558,107 +529,49 @@ const App = () => {
       lastIndex = codeBlockRegex.lastIndex;
     }
 
-    // Add remaining text after the last code block, if any
     if (lastIndex < content.length) {
       const remainingText = content.slice(lastIndex);
       const lines = remainingText.split("\n");
       lines.forEach((line, lineIndex) => {
         if (line.trim() === "---") {
-          // Render a divider for "---"
-          parts.push(
-            <div
-              key={`divider-${lastIndex}-${lineIndex}`}
-              style={{
-                borderTop: "1px solid #0F0",
-                margin: "20px 0",
-                opacity: 0.5,
-              }}
-            />
-          );
+          parts.push(<div key={`divider-${lastIndex}-${lineIndex}`} style={{ borderTop: "1px solid #0F0", margin: "20px 0", opacity: 0.5 }} />);
         } else if (line.trim().match(headingRegex)) {
-          // Render a heading for "###"
-          const headingText = line.replace(/^###\s*/, ""); // Remove "### " prefix
+          const headingText = line.replace(/^###\s*/, "");
           let textLastIndex = 0;
           let boldMatch;
           const headingParts = [];
           while ((boldMatch = boldRegex.exec(headingText)) !== null) {
             if (boldMatch.index > textLastIndex) {
-              headingParts.push(
-                <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                  {headingText.slice(textLastIndex, boldMatch.index)}
-                </span>
-              );
+              headingParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{headingText.slice(textLastIndex, boldMatch.index)}</span>);
             }
-            headingParts.push(
-              <strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>
-                {boldMatch[1]}
-              </strong>
-            );
+            headingParts.push(<strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>{boldMatch[1]}</strong>);
             textLastIndex = boldMatch.index + boldMatch[0].length;
           }
           if (textLastIndex < headingText.length) {
-            headingParts.push(
-              <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                {headingText.slice(textLastIndex)}
-              </span>
-            );
+            headingParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{headingText.slice(textLastIndex)}</span>);
           }
           parts.push(
-            <h3
-              key={`heading-${lastIndex}-${lineIndex}`}
-              style={{
-                color: "#0F0",
-                fontFamily: "'Courier New', monospace",
-                fontSize: "16px",
-                fontWeight: "bold",
-                textShadow: "0 0 5px #0F0",
-                margin: "15px 0",
-                letterSpacing: "1px",
-              }}
-            >
-              {headingParts}
+            <h3 key={`heading-${lastIndex}-${lineIndex}`} style={{ color: "#0F0", fontFamily: "'Courier New', monospace", fontSize: "16px", fontWeight: "bold", textShadow: "0 0 5px #0F0", margin: "15px 0", letterSpacing: "1px" }}>
+              {highlightMatches(headingText)}
             </h3>
           );
         } else if (line.trim() !== "") {
-          // Process regular text lines
           let textLastIndex = 0;
           let boldMatch;
           const lineParts = [];
           while ((boldMatch = boldRegex.exec(line)) !== null) {
             if (boldMatch.index > textLastIndex) {
-              lineParts.push(
-                <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                  {line.slice(textLastIndex, boldMatch.index)}
-                </span>
-              );
+              lineParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{line.slice(textLastIndex, boldMatch.index)}</span>);
             }
-            lineParts.push(
-              <strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>
-                {boldMatch[1]}
-              </strong>
-            );
+            lineParts.push(<strong key={`${lastIndex}-${lineIndex}-${boldMatch.index}`}>{boldMatch[1]}</strong>);
             textLastIndex = boldMatch.index + boldMatch[0].length;
           }
           if (textLastIndex < line.length) {
-            lineParts.push(
-              <span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>
-                {line.slice(textLastIndex)}
-              </span>
-            );
+            lineParts.push(<span key={`${lastIndex}-${lineIndex}-${textLastIndex}`}>{line.slice(textLastIndex)}</span>);
           }
-          parts.push(
-            <div key={`line-${lastIndex}-${lineIndex}`}>
-              {lineParts}
-            </div>
-          );
+          parts.push(<div key={`line-${lastIndex}-${lineIndex}`}>{highlightMatches(line)}</div>);
         }
-        // Add a line break between lines, but not after the last line or headings/dividers
-        if (
-          lineIndex < lines.length - 1 &&
-          line.trim() !== "---" &&
-          !line.trim().match(headingRegex) &&
-          line.trim() !== ""
-        ) {
+        if (lineIndex < lines.length - 1 && line.trim() !== "---" && !line.trim().match(headingRegex) && line.trim() !== "") {
           parts.push(<br key={`br-${lastIndex}-${lineIndex}`} />);
         }
       });
@@ -906,7 +819,7 @@ const App = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ENTER SEARCH QUERY..."
                   style={{
-                    width: "100%",
+                    width: "97%",
                     padding: "10px",
                     backgroundColor: "rgba(0, 20, 0, 0.8)",
                     color: "#0F0",
@@ -940,9 +853,11 @@ const App = () => {
                   {filteredChats.map((chat) => (
                     <div
                       key={chat.id}
-                      onClick={() => setSelectedChatForPreview(chat)}
+                      onClick={() => {
+                        setSelectedChatForPreview(chat);
+                      }}
                       onDoubleClick={() => {
-                        switchChat(chat.id);
+                        switchChat(chat.id, true); // Pass true for fromSearch
                         setIsSearchOverlayOpen(false);
                       }}
                       style={{
@@ -971,18 +886,28 @@ const App = () => {
                         {selectedChatForPreview.name}
                       </div>
                       <div style={{ flex: 1, overflowY: "auto", marginBottom: "10px" }}>
-                        {selectedChatForPreview.messages.slice(0, 3).map((msg, index) => (
-                          <div key={index} style={{ marginBottom: "10px" }}>
-                            <strong>{msg.role.toUpperCase()}:</strong> {msg.content.substring(0, 100)}...
-                          </div>
-                        ))}
+                        {selectedChatForPreview.messages
+                          .filter((msg) => searchQuery && msg.content.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .slice(0, 3)
+                          .map((msg, index) => (
+                            <div key={index} style={{ marginBottom: "10px" }}>
+                              <strong>{msg.role.toUpperCase()}:</strong> {highlightMatches(msg.content.substring(0, 100) + (msg.content.length > 100 ? "..." : ""), searchQuery)}
+                            </div>
+                          ))}
+                        {selectedChatForPreview.messages.every((msg) => !searchQuery || !msg.content.toLowerCase().includes(searchQuery.toLowerCase())) && (
+                          selectedChatForPreview.messages.slice(0, 3).map((msg, index) => (
+                            <div key={index} style={{ marginBottom: "10px" }}>
+                              <strong>{msg.role.toUpperCase()}:</strong> {highlightMatches(msg.content.substring(0, 100) + (msg.content.length > 100 ? "..." : ""), searchQuery)}
+                            </div>
+                          ))
+                        )}
                         {selectedChatForPreview.messages.length > 3 && (
                           <div style={{ textAlign: "center", color: "#666" }}>...more messages...</div>
                         )}
                       </div>
                       <button
                         onClick={() => {
-                          switchChat(selectedChatForPreview.id);
+                          switchChat(selectedChatForPreview.id, true);
                           setIsSearchOverlayOpen(false);
                         }}
                         style={{
@@ -1087,20 +1012,16 @@ const App = () => {
           {messages.map((msg, index) => (
             <div
               key={index}
+              id={`message-${index}`}
               style={{
                 margin: "10px 0",
                 padding: "12px",
                 border: `1px solid ${msg.role === "user" ? "#063" : "#0F0"}`,
                 borderRadius: "3px",
-                backgroundColor:
-                  msg.role === "user" ? "rgba(0, 10, 0, 0.7)" : "rgba(0, 20, 0, 0.7)",
-                boxShadow: `0 0 10px ${msg.role === "user" ? "rgba(0, 100, 0, 0.2)" : "rgba(0, 255, 0, 0.2)"
-                  }`,
+                backgroundColor: msg.role === "user" ? "rgba(0, 10, 0, 0.7)" : currentMatchIndex !== -1 && matches[currentMatchIndex]?.messageIndex === index ? "rgba(0, 50, 0, 0.7)" : "rgba(0, 20, 0, 0.7)",
+                boxShadow: `0 0 10px ${msg.role === "user" ? "rgba(0, 100, 0, 0.2)" : "rgba(0, 255, 0, 0.2)"}`,
                 position: "relative",
-                animation:
-                  index === messages.length - 1 && msg.role === "assistant"
-                    ? "fadeIn 0.5s"
-                    : "none",
+                animation: index === messages.length - 1 && msg.role === "assistant" ? "fadeIn 0.5s" : "none",
               }}
             >
               <div
@@ -1233,7 +1154,7 @@ const App = () => {
             fontFamily: "'Courier New', monospace",
             boxShadow: "0 0 5px rgba(0, 255, 0, 0.3)",
             transition: "all 0.3s ease",
-            zIndex: 10,
+            zIndex: 4,
             width: "auto",
             minWidth: "60px",
             whiteSpace: "nowrap",
@@ -1271,6 +1192,81 @@ const App = () => {
             {uploadConfirmation}
           </div>
         )}
+
+        {/* search through chat buttons */}
+        {matches.length > 0 && (
+          <div style={{ position: "sticky", bottom: "190px", zIndex: 5, textAlign: "center", margin: "10px 0" }}>
+            <button
+              onClick={() => {
+                const newIndex = Math.max(0, currentMatchIndex - 1);
+                setCurrentMatchIndex(newIndex);
+                scrollToMatch(matches[newIndex]);
+              }}
+              disabled={currentMatchIndex <= 0}
+              style={{
+                backgroundColor: "rgba(0, 20, 0, 0.8)",
+                color: currentMatchIndex <= 0 ? "#666" : "#0F0",
+                border: "1px solid #0F0",
+                padding: "6px 12px",
+                cursor: currentMatchIndex <= 0 ? "not-allowed" : "pointer",
+                fontFamily: "'Courier New', monospace",
+                marginRight: "10px"
+              }}
+            >
+              PREV
+            </button>
+            <span style={{ color: "#0F0" }}>
+              {currentMatchIndex + 1} / {matches.length}
+            </span>
+            <button
+              onClick={() => {
+                const newIndex = Math.min(matches.length - 1, currentMatchIndex + 1);
+                setCurrentMatchIndex(newIndex);
+                scrollToMatch(matches[newIndex]);
+              }}
+              disabled={currentMatchIndex >= matches.length - 1}
+              style={{
+                backgroundColor: "rgba(0, 20, 0, 0.8)",
+                color: currentMatchIndex >= matches.length - 1 ? "#666" : "#0F0",
+                border: "1px solid #0F0",
+                padding: "6px 12px",
+                cursor: currentMatchIndex >= matches.length - 1 ? "not-allowed" : "pointer",
+                fontFamily: "'Courier New', monospace",
+                marginLeft: "10px"
+              }}
+            >
+              NEXT
+            </button>
+            <button
+              onClick={() => {
+                setMatches([]);
+                setCurrentMatchIndex(-1);
+                setSearchQuery(""); // Optional: clear the search query too
+              }}
+              style={{
+                backgroundColor: "rgba(0, 20, 0, 0.8)",
+                color: "#F00",
+                border: "1px solid #F00",
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontFamily: "'Courier New', monospace",
+                marginLeft: "10px",
+                transition: "all 0.3s ease"
+              }}
+              onMouseOver={(e) => {
+                e.target.style.backgroundColor = "rgba(0, 40, 0, 0.8)";
+                e.target.style.boxShadow = "0 0 10px #F00";
+              }}
+              onMouseOut={(e) => {
+                e.target.style.backgroundColor = "rgba(0, 20, 0, 0.8)";
+                e.target.style.boxShadow = "none";
+              }}
+            >
+              CLOSE SEARCH
+            </button>
+          </div>
+        )}
+
         {/* Prompt Box Section */}
         <div
           style={{
